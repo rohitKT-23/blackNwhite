@@ -41,7 +41,7 @@ function Admin() {
             <p className="text-gray-700">{article.content}</p>
             {article.mediaUrl && (
               <img
-                src={`http://localhost:5000${article.mediaUrl}`} // Correcting the image path
+                src={`${article.mediaUrl}`} // Correcting the image path
                 alt="News"
                 className="mt-2 rounded-lg max-w-full"
               />
