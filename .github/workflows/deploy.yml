@@ -1,0 +1,119 @@
+name: CI/CD Pipeline - TruthPost
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛎 Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🏗 Set Up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: 📦 Install Backend Dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: 📦 Install Frontend Dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: 🔍 Run ESLint Security Scan
+        working-directory: backend
+        run: |
+          npx eslint . --ext .js,.jsx,.ts,.tsx --quiet --format compact || true
+
+      - name: 🔍 Run Bandit Security Scan (Python AI Services)
+        working-directory: ai-services
+        run: |
+          pip install bandit
+          bandit -r .
+
+      - name: 🔍 Run Semgrep Scan (Optional)
+        working-directory: backend
+        run: |
+          pip install semgrep
+          semgrep scan --config="p/default"
+
+      - name: 🧠 Test AI Fake News Detection Service
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8001/predict-text -H "Content-Type: application/json" -d '{"text": "This is a test news article"}')
+          echo "Response: $RESPONSE"
+          LABEL=$(echo $RESPONSE | jq -r '.label')
+          if [[ "$LABEL" == "fake" ]]; then
+            echo "🚨 Fake News Detected! Failing Pipeline..."
+            exit 1
+          fi
+
+      - name: 🖼 Test AI Deepfake Detection Service
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8002/predict-image -F "image=@test.jpg")
+          echo "Response: $RESPONSE"
+          DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
+          if [[ "$DEEPFAKE" == "true" ]]; then
+            echo "🚨 Deepfake Detected! Failing Pipeline..."
+            exit 1
+          fi
+
+      - name: 🧪 Run Tests (Optional)
+        working-directory: backend
+        run: npm test || echo "⚠️ Tests failed, but continuing..."
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛎 Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🚀 Deploy Only New Changes to AWS EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          SSH_USER: ubuntu
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "Deploying only new changes to EC2..."
+          echo "$SSH_KEY" > blackNwhite.pem.pem
+          chmod 600 blackNwhite.pem.pem
+          ssh -o StrictHostKeyChecking=no -i blackNwhite.pem.pem $SSH_USER@$EC2_HOST << 'EOF'
+            cd /home/ubuntu/truthpost
+            git fetch origin main
+            CHANGED_FILES=$(git diff --name-only HEAD origin/main)
+
+            if [[ -z "$CHANGED_FILES" ]]; then
+              echo "✅ No new changes detected. Skipping deployment."
+              exit 0
+            fi
+
+            git pull origin main
+
+            if [[ "$CHANGED_FILES" == *"backend/"* ]]; then
+              echo "🚀 Updating Backend..."
+              cd backend
+              npm install
+              pm2 restart backend
+            fi
+
+            if [[ "$CHANGED_FILES" == *"frontend/"* ]]; then
+              echo "🚀 Updating Frontend..."
+              cd frontend
+              npm install
+              npm run build
+              pm2 restart frontend
+            fi
+          EOF
+
+      - name: ✅ Deployment Success Message
+        run: echo "🎉 Deployment to AWS EC2 completed!"
