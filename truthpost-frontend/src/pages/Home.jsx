@@ -21,7 +21,7 @@ function Home() {
     if (formData.media) formDataToSend.append('media', formData.media);
 
     try {
-      await axios.post('http://localhost:5000/api/articles', formDataToSend);
+      await axios.post('/api/articles', formDataToSend);
       alert('Article submitted successfully!');
     } catch (error) {
       console.error(error);

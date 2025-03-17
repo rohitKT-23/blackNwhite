@@ -7,7 +7,7 @@ function Admin() {
   useEffect(() => {
     const fetchArticles = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/articles');
+        const response = await axios.get('/api/articles');
         setArticles(response.data);
       } catch (error) {
         console.error('Error fetching articles:', error);
@@ -18,7 +18,7 @@ function Admin() {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.put(`http://localhost:5000/api/articles/${id}`, { status });
+      await axios.put(`/api/articles/${id}`, { status });
       setArticles((prevArticles) =>
         prevArticles.map((article) =>
           article._id === id ? { ...article, status } : article

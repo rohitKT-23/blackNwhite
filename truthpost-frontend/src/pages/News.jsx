@@ -31,7 +31,7 @@ function News() {
             <p className="text-gray-700">{article.content}</p>
             {article.mediaUrl && (
               <img
-                src={`http://localhost:5000${article.mediaUrl}`}
+                src={`${article.mediaUrl}`}
                 alt="News"
                 className="mt-2 rounded-lg max-w-full"
               />
