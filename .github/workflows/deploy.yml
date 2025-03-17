@@ -22,15 +22,15 @@ jobs:
           node-version: 18
 
       - name: 📦 Install Backend Dependencies
-        working-directory: backend
+        working-directory: truthpost-backend
         run: npm install
 
       - name: 📦 Install Frontend Dependencies
-        working-directory: frontend
+        working-directory: truthpost-frontend
         run: npm install
 
       - name: 🔍 Run ESLint Security Scan
-        working-directory: backend
+        working-directory: truthpost-backend
         run: |
           npx eslint . --ext .js,.jsx,.ts,.tsx --quiet --format compact || true
 
@@ -41,13 +41,26 @@ jobs:
           bandit -r .
 
       - name: 🔍 Run Semgrep Scan (Optional)
-        working-directory: backend
+        working-directory: truthpost-backend
         run: |
           pip install semgrep
           semgrep scan --config="p/default"
 
+      - name: 🐳 Pull Fake News Detection Service from DockerHub
+        run: docker pull rohitkt23/fake-news-service:latest
+
+      - name: 🐳 Run Fake News Detection Service
+        run: docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+
+      - name: 🐳 Pull Deepfake Detection Service from DockerHub
+        run: docker pull rohitkt23/deepfake-service:latest
+
+      - name: 🐳 Run Deepfake Detection Service
+        run: docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
+
       - name: 🧠 Test AI Fake News Detection Service
         run: |
+          sleep 5  # Wait for container to start
           RESPONSE=$(curl -s -X POST http://localhost:8001/predict-text -H "Content-Type: application/json" -d '{"text": "This is a test news article"}')
           echo "Response: $RESPONSE"
           LABEL=$(echo $RESPONSE | jq -r '.label')
@@ -58,6 +71,7 @@ jobs:
 
       - name: 🖼 Test AI Deepfake Detection Service
         run: |
+          sleep 5  # Wait for container to start
           RESPONSE=$(curl -s -X POST http://localhost:8002/predict-image -F "image=@test.jpg")
           echo "Response: $RESPONSE"
           DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
@@ -67,7 +81,7 @@ jobs:
           fi
 
       - name: 🧪 Run Tests (Optional)
-        working-directory: backend
+        working-directory: truthpost-backend
         run: npm test || echo "⚠️ Tests failed, but continuing..."
 
   deploy:
@@ -85,9 +99,9 @@ jobs:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           echo "Deploying only new changes to EC2..."
-          echo "$SSH_KEY" > blackNwhite.pem.pem
-          chmod 600 blackNwhite.pem.pem
-          ssh -o StrictHostKeyChecking=no -i blackNwhite.pem.pem $SSH_USER@$EC2_HOST << 'EOF'
+          echo "$SSH_KEY" > blackNwhite.pem
+          chmod 600 blackNwhite.pem
+          ssh -o StrictHostKeyChecking=no -i blackNwhite.pem $SSH_USER@$EC2_HOST << 'EOF'
             cd /home/ubuntu/truthpost
             git fetch origin main
             CHANGED_FILES=$(git diff --name-only HEAD origin/main)
@@ -99,20 +113,28 @@ jobs:
 
             git pull origin main
 
-            if [[ "$CHANGED_FILES" == *"backend/"* ]]; then
+            if [[ "$CHANGED_FILES" == *"truthpost-backend/"* ]]; then
               echo "🚀 Updating Backend..."
-              cd backend
+              cd truthpost-backend
               npm install
-              pm2 restart backend
+              pm2 restart truthpost-backend
             fi
 
-            if [[ "$CHANGED_FILES" == *"frontend/"* ]]; then
+            if [[ "$CHANGED_FILES" == *"truthpost-frontend/"* ]]; then
               echo "🚀 Updating Frontend..."
-              cd frontend
+              cd truthpost-frontend
               npm install
               npm run build
-              pm2 restart frontend
+              pm2 restart truthpost-frontend
             fi
+
+            # Restart Docker containers for AI services
+            docker pull rohitkt23/fake-news-service:latest
+            docker pull rohitkt23/deepfake-service:latest
+            docker stop fake-news-service deepfake-service || true
+            docker rm fake-news-service deepfake-service || true
+            docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+            docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
           EOF
 
       - name: ✅ Deployment Success Message
