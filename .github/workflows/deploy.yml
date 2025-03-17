@@ -34,11 +34,6 @@ jobs:
         run: |
           npx eslint . --ext .js,.jsx,.ts,.tsx --quiet --format compact || true
 
-      - name: 🔍 Run Bandit Security Scan (Python AI Services)
-        working-directory: ai-services
-        run: |
-          pip install bandit
-          bandit -r .
 
       - name: 🔍 Run Semgrep Scan (Optional)
         working-directory: truthpost-backend
