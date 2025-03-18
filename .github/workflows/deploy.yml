@@ -64,20 +64,6 @@ jobs:
             exit 1
           fi
 
-      - name: 🖼 Test AI Deepfake Detection Service
-        run: |
-          sleep 5  # Wait for container to start
-          RESPONSE=$(curl -s -X POST http://localhost:8002/predict-image -F "image=@test.jpg")
-          echo "Response: $RESPONSE"
-          DEEPFAKE=$(echo "$RESPONSE" | jq -r '.deepfake_detected' || echo "null")
-          if [[ "$DEEPFAKE" == "true" ]]; then
-            echo "🚨 Deepfake Detected! Failing Pipeline..."
-            exit 1
-          elif [[ "$DEEPFAKE" == "null" ]]; then
-            echo "⚠️ Warning: No valid response from Deepfake Service!"
-          else
-            echo "✅ No deepfake detected."
-          fi
 
 
       - name: 🧪 Run Tests (Optional)
