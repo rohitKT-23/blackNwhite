@@ -88,7 +88,7 @@ jobs:
           echo "$SSH_KEY" > blackNwhite.pem
           chmod 600 blackNwhite.pem
           ssh -o StrictHostKeyChecking=no -i blackNwhite.pem $SSH_USER@$EC2_HOST << 'EOF'
-            cd /home/ubuntu/truthpost
+            cd /home/ubuntu/blackNwhite
             git fetch origin main
             CHANGED_FILES=$(git diff --name-only HEAD origin/main)
 
