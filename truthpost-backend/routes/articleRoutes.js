@@ -38,25 +38,46 @@ router.post("/", upload.single("media"), async (req, res) => {
     // Step 2: Call AI services
     const textScan = await axios.post("http://localhost:8001/predict-text", { text: content });
     const textResult = textScan.data;
+    let mediaResult = { label: "No Media", confidence: 0 };
 
-    let imageResult = { label: "No Image", confidence: 0 }; // Default if no image
     if (req.file) {
+      const fileExt = req.file.originalname.split('.').pop().toLowerCase();
       const formData = new FormData();
-      formData.append("image", fs.createReadStream(req.file.path)); // Absolute path for AI API
-
-      const imageScan = await axios.post("http://localhost:8002/predict-image", formData, {
-        headers: { ...formData.getHeaders() },
-      });
-      imageResult = imageScan.data;
+      const fileStream = fs.createReadStream(req.file.path);
+    
+      if (["jpg", "jpeg", "png"].includes(fileExt)) {
+        formData.append("image", fileStream);
+    
+        const imageScan = await axios.post("http://localhost:8002/predict-image", formData, {
+          headers: { ...formData.getHeaders() },
+        });
+    
+        mediaResult = {
+          label: imageScan.data.label || "unknown",
+          confidence: imageScan.data.confidence || 0,
+        };
+    
+      } else if (["mp4", "mov", "avi"].includes(fileExt)) {
+        formData.append("file", fileStream); // key must match FastAPI endpoint
+    
+        const videoScan = await axios.post("http://localhost:8003/predict-video", formData, {
+          headers: { ...formData.getHeaders() },
+        });
+    
+        mediaResult = {
+          label: videoScan.data.deepfake_detected ? "deepfake" : "real",
+          confidence: videoScan.data.confidence,
+        };
+      }
     }
+    
 
     // Step 3: Determine article status
     let status = "approved";
 
     const textLabel = textResult.label.toLowerCase();
-    const imageLabel = imageResult.label.toLowerCase();
-
-    if (textLabel === "fake news" || imageLabel === "deepfake") {
+    const mediaLabel = mediaResult.label.toLowerCase();
+    if (textLabel === "fake news" || mediaLabel === "deepfake") {
       status = "rejected";
     }
 
@@ -69,7 +90,7 @@ router.post("/", upload.single("media"), async (req, res) => {
       message: "Article submitted successfully",
       articleId: newArticle._id,
       textAnalysis: textResult,
-      imageAnalysis: imageResult,
+      mediaAnalysis: mediaResult,
       finalStatus: status,
     });
 

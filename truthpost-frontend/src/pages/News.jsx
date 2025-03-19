@@ -30,12 +30,22 @@ function News() {
             <h2 className="text-xl font-semibold">{article.title}</h2>
             <p className="text-gray-700">{article.content}</p>
             {article.mediaUrl && (
-              <img
-                src={`${article.mediaUrl}`}
-                alt="News"
-                className="mt-2 rounded-lg max-w-full"
-              />
-            )}
+  <>
+    {article.mediaUrl.endsWith(".mp4") ? (
+      <video controls className="mt-2 rounded-lg max-w-full">
+        <source src={article.mediaUrl} type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    ) : (
+      <img
+        src={article.mediaUrl}
+        alt="News"
+        className="mt-2 rounded-lg max-w-full"
+      />
+    )}
+  </>
+)}
+
             <p className="mt-2 text-sm font-medium text-green-500">
               Status: {article.status}
             </p>
