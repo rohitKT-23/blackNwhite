@@ -37,4 +37,4 @@ async def predict_image(image: UploadFile = File(...)):
 # Run locally
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    uvicorn.run(app, host="172.31.1.46", port=8002)

@@ -1,10 +1,17 @@
 import torch
 import numpy as np
 import cv2
+import hashlib
+import logging
 from torch import nn
 from torchvision import transforms, models
 from torch.utils.data.dataset import Dataset
 import face_recognition
+import os
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 im_size = 112
 mean = [0.485, 0.456, 0.406]
@@ -47,18 +54,26 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, idx):
         frames = []
-        a = int(100 / self.count)
         for i, frame in enumerate(self.frame_extract(self.video_path)):
             try:
                 faces = face_recognition.face_locations(frame)
                 if faces:
                     top, right, bottom, left = faces[0]
                     frame = frame[top:bottom, left:right]
-            except:
-                pass
+            except face_recognition.FaceRecognitionError as e:
+                logger.warning(f"Face recognition error: {e}")
+                continue
+            except cv2.error as e:
+                logger.warning(f"OpenCV error: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
+                continue
+
             frames.append(self.transform(frame))
             if len(frames) == self.count:
                 break
+
         frames = torch.stack(frames)[:self.count]
         return frames.unsqueeze(0)
 
@@ -70,17 +85,43 @@ class VideoDataset(Dataset):
                 break
             yield image
 
+def verify_model_integrity(model_path, expected_hash):
+    """Verify model file integrity using SHA256 hash."""
+    if not os.path.exists(model_path):
+        logger.error("Model file not found!")
+        return False
+
+    sha256 = hashlib.sha256()
+    with open(model_path, "rb") as f:
+        while chunk := f.read(8192):
+            sha256.update(chunk)
+
+    model_hash = sha256.hexdigest()
+    if model_hash != expected_hash:
+        logger.error("Model integrity check failed! Possible tampering detected.")
+        return False
+
+    logger.info("Model integrity verified.")
+    return True
+
 def load_model():
+    """Load the model securely."""
     model = Model(2)
     path_to_model = "models/model_87_acc_20_frames_final_data.pt"
-    model.load_state_dict(torch.load(path_to_model, map_location=torch.device('cpu')))
 
+    expected_hash = "your_precomputed_sha256_hash_here"  # Replace with actual hash
+    if not verify_model_integrity(path_to_model, expected_hash):
+        raise RuntimeError("Model file verification failed!")
+
+    model.load_state_dict(torch.load(path_to_model, map_location=torch.device('cpu')))
     model.eval()
     return model
 
 def predict_video(model, video_path):
+    """Perform deepfake detection on a video."""
     dataset = VideoDataset(video_path, sequence_length=20, transform=train_transforms)
-    sm = nn.Softmax()
+    sm = nn.Softmax(dim=1)
+
     with torch.no_grad():
         frames = dataset[0]
         _, logits = model(frames)

@@ -30,4 +30,4 @@ def predict_news(news: NewsInput):
 # Run locally
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="172.31.1.46", port=8001)
