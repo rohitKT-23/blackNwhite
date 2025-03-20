@@ -1,1 +1,3 @@
 model_87_acc_20_frames_final_data.pt
+genconvit_ed_inference.pth
+genconvit_vae_inference.pth

@@ -1,6 +1,6 @@
-fastapi
-uvicorn
-transformers
+Pillow
+facenet-pytorch==2.5.2
 torch
-pillow
-python-multipart
+opencv-python
+grad-cam
+transformers

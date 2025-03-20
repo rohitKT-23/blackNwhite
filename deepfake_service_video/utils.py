@@ -36,12 +36,14 @@ class Model(nn.Module):
         x_lstm, _ = self.lstm(x, None)
         return fmap, self.dp(self.linear1(x_lstm[:, -1, :]))
 
+
 train_transforms = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((im_size, im_size)),
     transforms.ToTensor(),
     transforms.Normalize(mean, std)
 ])
+
 
 class VideoDataset(Dataset):
     def __init__(self, video_path, sequence_length=20, transform=None):
@@ -82,6 +84,7 @@ class VideoDataset(Dataset):
                 break
             yield image
 
+
 def verify_model_integrity(model_path, expected_hash):
     """Verify model file integrity using SHA256 hash."""
     if not os.path.exists(model_path):
@@ -101,6 +104,7 @@ def verify_model_integrity(model_path, expected_hash):
     logger.info("Model integrity verified.")
     return True
 
+
 def safe_load_model(path_to_model, expected_hash):
     """Securely load a PyTorch model using JIT, with integrity verification."""
     if not verify_model_integrity(path_to_model, expected_hash):
@@ -116,22 +120,29 @@ def safe_load_model(path_to_model, expected_hash):
         return None
 
 
-
-def load_model():
+def load_model(path_to_model):
     """Load the model securely with restricted pickle usage."""
-    model = Model(2)
-    path_to_model = "models/model_87_acc_20_frames_final_data.pt"
+    
+    # Correct hash values
+    expected_hashes = {
+        "genconvit_ed_inference.pth": "86f0c2e875016435def7d031b357bda5dc0061367290d73de121186df3f03f8c",
+        "genconvit_vae_inference.pth": "53c627c82d1439fc80e18ac462c1ed6969a3babe5376124a5c38d1c0c88c9042"
+    }
 
-    expected_hash = "your_precomputed_sha256_hash_here"  # Replace with actual hash
-    if not verify_model_integrity(path_to_model, expected_hash):
+    if path_to_model not in expected_hashes:
+        raise ValueError(f"Unexpected model path: {path_to_model}")
+
+    if not verify_model_integrity(path_to_model, expected_hashes[path_to_model]):
         raise RuntimeError("Model file verification failed!")
 
+    model = Model(2)
     with open(path_to_model, "rb") as f:
-        model_state_dict = torch.load(f, map_location=torch.device('cpu'), weights_only=True)  # Secure loading
+        model_state_dict = torch.load(f, map_location=torch.device('cpu'))
     
-    model.load_state_dict(model_state_dict)
+    model.load_state_dict(model_state_dict, strict=False)
     model.eval()
     return model
+
 
 def predict_video(model, video_path):
     """Perform deepfake detection on a video."""
