@@ -78,7 +78,7 @@ jobs:
 
       - name: 🧠 Test AI Deepfake Image Detection
         run: |
-          RESPONSE=$(curl -s -X POST -F "image=@truthpost-backend\test.jpg" http://localhost:8002/predict-image)
+          RESPONSE=$(curl -s -X POST -F "image=@test.jpg" http://localhost:8002/predict-image)
           echo "Response: $RESPONSE"
           DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
           if [[ "$DEEPFAKE" == "true" ]]; then
@@ -88,7 +88,7 @@ jobs:
 
       - name: 🧠 Test AI Deepfake Video Detection
         run: |
-          RESPONSE=$(curl -s -X POST -F "video=@truthpost-backend\test.mp4" http://localhost:8003/predict-video)
+          RESPONSE=$(curl -s -X POST -F "video=@test.mp4" http://localhost:8003/predict-video)
           echo "Response: $RESPONSE"
           DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
           if [[ "$DEEPFAKE" == "true" ]]; then
