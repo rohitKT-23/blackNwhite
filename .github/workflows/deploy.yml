@@ -35,7 +35,7 @@ jobs:
           npx eslint . --ext .js,.jsx,.ts,.tsx --quiet --format compact || true
 
 
-      - name: 🔍 Run Semgrep Scan (Optional)
+      - name: 🔍 Run Semgrep Scan - Optional
         working-directory: truthpost-backend
         run: |
           pip install semgrep
