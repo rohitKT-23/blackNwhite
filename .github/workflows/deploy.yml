@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: 🛎 Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: 🏗 Set Up Node.js
         uses: actions/setup-node@v4
@@ -29,33 +29,45 @@ jobs:
         working-directory: truthpost-frontend
         run: npm install
 
+      # ✅ AI Security Scans
       - name: 🔍 Run ESLint Security Scan
         working-directory: truthpost-backend
         run: |
+          npm install eslint eslint-plugin-security
           npx eslint . --ext .js,.jsx,.ts,.tsx --quiet --format compact || true
 
-
-      - name: 🔍 Run Semgrep Scan - Optional
+      - name: 🔍 Run Semgrep AI Security Scan
         working-directory: truthpost-backend
         run: |
           pip install semgrep
           semgrep scan --config="p/default"
 
-      - name: 🐳 Pull Fake News Detection Service from DockerHub
-        run: docker pull rohitkt23/fake-news-service:latest
-
-      - name: 🐳 Run Fake News Detection Service
-        run: docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
-
-      - name: 🐳 Pull Deepfake Detection Service from DockerHub
-        run: docker pull rohitkt23/deepfake-service:latest
-
-      - name: 🐳 Run Deepfake Detection Service
-        run: docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
-
-      - name: 🧠 Test AI Fake News Detection Service
+      - name: 🔍 Run Bandit Security Scan (Python)
         run: |
-          sleep 5  # Wait for container to start
+          pip install bandit
+          bandit -r fake_news_service/ deepfake_service/ deepfake_service_video/
+
+      - name: 🔍 Run Trivy Docker Security Scan
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          trivy image rohitkt23/fake-news-service:latest || true
+          trivy image rohitkt23/deepfake-service:latest || true
+          trivy image rohitkt23/deepfake-video-service:latest || true
+
+      # ✅ Start AI Microservices
+      - name: 🐳 Pull & Start AI Services
+        run: |
+          docker pull rohitkt23/fake-news-service:latest
+          docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+          docker pull rohitkt23/deepfake-service:latest
+          docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
+          docker pull rohitkt23/deepfake-video-service:latest
+          docker run -d -p 8003:8003 --name deepfake-video-service rohitkt23/deepfake-video-service:latest
+
+      # ✅ AI Microservices Testing
+      - name: 🧠 Test AI Fake News Detection
+        run: |
+          sleep 5
           RESPONSE=$(curl -s -X POST http://localhost:8001/predict-text -H "Content-Type: application/json" -d '{"text": "This is a test news article"}')
           echo "Response: $RESPONSE"
           LABEL=$(echo $RESPONSE | jq -r '.label')
@@ -64,9 +76,27 @@ jobs:
             exit 1
           fi
 
+      - name: 🧠 Test AI Deepfake Image Detection
+        run: |
+          RESPONSE=$(curl -s -X POST -F "image=@test.jpg" http://localhost:8002/predict-image)
+          echo "Response: $RESPONSE"
+          DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
+          if [[ "$DEEPFAKE" == "true" ]]; then
+            echo "🚨 Deepfake Image Detected! Failing Pipeline..."
+            exit 1
+          fi
 
+      - name: 🧠 Test AI Deepfake Video Detection
+        run: |
+          RESPONSE=$(curl -s -X POST -F "video=@test.mp4" http://localhost:8003/predict-video)
+          echo "Response: $RESPONSE"
+          DEEPFAKE=$(echo $RESPONSE | jq -r '.deepfake_detected')
+          if [[ "$DEEPFAKE" == "true" ]]; then
+            echo "🚨 Deepfake Video Detected! Failing Pipeline..."
+            exit 1
+          fi
 
-      - name: 🧪 Run Test (Optional)
+      - name: 🧪 Run Backend Tests
         working-directory: truthpost-backend
         run: npm test || echo "⚠️ Tests failed, but continuing..."
 
@@ -76,7 +106,7 @@ jobs:
 
     steps:
       - name: 🛎 Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: 🚀 Deploy Only New Changes to AWS EC2
         env:
@@ -84,7 +114,6 @@ jobs:
           SSH_USER: ubuntu
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "Deploying only new changes to EC2..."
           echo "$SSH_KEY" > blackNwhite.pem
           chmod 600 blackNwhite.pem
           ssh -o StrictHostKeyChecking=no -i blackNwhite.pem $SSH_USER@$EC2_HOST << 'EOF'
@@ -114,13 +143,41 @@ jobs:
               pm2 restart truthpost-frontend
             fi
 
-            # Restart Docker containers for AI services
-            docker pull rohitkt23/fake-news-service:latest
-            docker pull rohitkt23/deepfake-service:latest
-            docker stop fake-news-service deepfake-service || true
-            docker rm fake-news-service deepfake-service || true
-            docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
-            docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
+            # 🚀 Restart AI Services Only If Updated
+            AI_SERVICES_UPDATED=false
+
+            if [[ "$CHANGED_FILES" == *"fake_news_service/"* ]]; then
+              echo "🔄 Updating Fake News Service..."
+              docker pull rohitkt23/fake-news-service:latest
+              docker stop fake-news-service || true
+              docker rm fake-news-service || true
+              docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+              AI_SERVICES_UPDATED=true
+            fi
+
+            if [[ "$CHANGED_FILES" == *"deepfake_service/"* ]]; then
+              echo "🔄 Updating Deepfake Image Service..."
+              docker pull rohitkt23/deepfake-service:latest
+              docker stop deepfake-service || true
+              docker rm deepfake-service || true
+              docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
+              AI_SERVICES_UPDATED=true
+            fi
+
+            if [[ "$CHANGED_FILES" == *"deepfake_service_video/"* ]]; then
+              echo "🔄 Updating Deepfake Video Service..."
+              docker pull rohitkt23/deepfake-video-service:latest
+              docker stop deepfake-video-service || true
+              docker rm deepfake-video-service || true
+              docker run -d -p 8003:8003 --name deepfake-video-service rohitkt23/deepfake-video-service:latest
+              AI_SERVICES_UPDATED=true
+            fi
+
+            if [[ "$AI_SERVICES_UPDATED" == "true" ]]; then
+              echo "✅ AI Services Restarted Successfully!"
+            else
+              echo "⚡ No AI service updates detected."
+            fi
           EOF
 
       - name: ✅ Deployment Success Message
