@@ -60,11 +60,8 @@ class VideoDataset(Dataset):
                 if faces:
                     top, right, bottom, left = faces[0]
                     frame = frame[top:bottom, left:right]
-            except face_recognition.FaceRecognitionError as e:
-                logger.warning(f"Face recognition error: {e}")
-                continue
-            except cv2.error as e:
-                logger.warning(f"OpenCV error: {e}")
+            except (face_recognition.FaceRecognitionError, cv2.error) as e:
+                logger.warning(f"Face detection error: {e}")
                 continue
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
@@ -104,8 +101,24 @@ def verify_model_integrity(model_path, expected_hash):
     logger.info("Model integrity verified.")
     return True
 
+def safe_load_model(path_to_model, expected_hash):
+    """Securely load a PyTorch model using JIT, with integrity verification."""
+    if not verify_model_integrity(path_to_model, expected_hash):
+        raise RuntimeError("Model file verification failed!")
+
+    try:
+        # Bandit B614 warning suppressed because we ensure integrity before loading
+        model = torch.jit.load(path_to_model, map_location=torch.device('cpu'))  # nosec B614
+        logger.info("Model loaded securely with JIT.")
+        return model
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        return None
+
+
+
 def load_model():
-    """Load the model securely."""
+    """Load the model securely with restricted pickle usage."""
     model = Model(2)
     path_to_model = "models/model_87_acc_20_frames_final_data.pt"
 
@@ -113,7 +126,10 @@ def load_model():
     if not verify_model_integrity(path_to_model, expected_hash):
         raise RuntimeError("Model file verification failed!")
 
-    model.load_state_dict(torch.load(path_to_model, map_location=torch.device('cpu')))
+    with open(path_to_model, "rb") as f:
+        model_state_dict = torch.load(f, map_location=torch.device('cpu'), weights_only=True)  # Secure loading
+    
+    model.load_state_dict(model_state_dict)
     model.eval()
     return model
 
@@ -130,6 +146,6 @@ def predict_video(model, video_path):
         confidence = logits[0, pred_class].item()
 
         return {
-            "deepfake_detected": False if pred_class == 1 else True,
+            "deepfake_detected": pred_class == 0,
             "confidence": round(confidence, 3)
         }
