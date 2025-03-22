@@ -50,17 +50,17 @@ jobs:
       - name: 🔍 Run Trivy Docker Security Scan
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          trivy image rohitkt23/fake-news-service:latest || true
-          trivy image rohitkt23/deepfake-service:latest || true
-          trivy image rohitkt23/deepfake-video-service:latest || true
+          trivy image rohitkt23/deepfake-news-service || true
+          trivy image rohitkt23/deepfake-image-service || true
+          trivy image rohitkt23/deepfake-video-service || true
 
       # ✅ Start AI Microservices
       - name: 🐳 Pull & Start AI Services
         run: |
-          docker pull rohitkt23/fake-news-service:latest
-          docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+          docker pull rohitkt23/deepfake-news-service:latest
+          docker run -d -p 8001:8001 --name deepfake-news-service rohitkt23/deepdeepfake-news-servicece:latest
           docker pull rohitkt23/deepfake-service:latest
-          docker run -d -p 8002:8002 --name deepfake-service rohitkt23/deepfake-service:latest
+          docker run -d -p 8002:8002 --name deepfake-image-service rohitkt23/rohitkt23/deepfake-image-service:latest
           docker pull rohitkt23/deepfake-video-service:latest
           docker run -d -p 8003:8003 --name deepfake-video-service rohitkt23/deepfake-video-service:latest
 
@@ -148,10 +148,10 @@ jobs:
 
             if [[ "$CHANGED_FILES" == *"fake_news_service/"* ]]; then
               echo "🔄 Updating Fake News Service..."
-              docker pull rohitkt23/fake-news-service:latest
-              docker stop fake-news-service || true
-              docker rm fake-news-service || true
-              docker run -d -p 8001:8001 --name fake-news-service rohitkt23/fake-news-service:latest
+              docker pull rohitkt23/deepfake-news-service:latest
+              docker stop deepfake-news-service || true
+              docker rm deepfake-news-service || true
+              docker run -d -p 8001:8001 --name deepfake-news-service rohitkt23/deepfake-news-service:latest
               AI_SERVICES_UPDATED=true
             fi
 
