@@ -149,7 +149,8 @@ def check_credibility(claim, full_text):
     }
     
     try:
-        response = requests.post(SERPER_API_URL, headers=headers, data=payload)
+        response = requests.post(SERPER_API_URL, headers=headers, data=payload, timeout=10)
+
         results = response.json()
         search_query_used = claim
 
@@ -254,4 +255,4 @@ if __name__ == "__main__":
     # Add freeze_support for Windows multiprocessing
     multiprocessing.freeze_support()
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("main:app", host="54.163.173.200", port=8001, reload=True)
