@@ -59,7 +59,7 @@ jobs:
         run: |
           docker pull rohitkt23/deepfake-news-service:latest
           docker run -d -p 8001:8001 --name deepfake-news-service rohitkt23/deepfake-news-service:latest
-          docker pull rohitkt23/deepfake-service:latest
+          docker pull rohitkt23/deepfake-image-service:latest
           docker run -d -p 8002:8002 --name deepfake-image-service rohitkt23/rohitkt23/deepfake-image-service:latest
           docker pull rohitkt23/deepfake-video-service:latest
           docker run -d -p 8003:8003 --name deepfake-video-service rohitkt23/deepfake-video-service:latest
