@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
-import subprocess
 import re
 import string
 import torch
@@ -18,8 +17,9 @@ try:
     nlp = spacy.load('en_core_web_sm')
 except:
     # If the model isn't available, download it
-    import os
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+    import sys
+    import subprocess
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True)
     nlp = spacy.load('en_core_web_sm')
 
 # Load Fake News Detection Model using pipeline

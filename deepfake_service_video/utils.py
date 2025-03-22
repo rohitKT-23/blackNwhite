@@ -137,7 +137,8 @@ def load_model(path_to_model):
 
     model = Model(2)
     with open(path_to_model, "rb") as f:
-        model_state_dict = torch.load(f, map_location=torch.device('cpu'), _use_new_zipfile_serialization=False)
+        model_state_dict = torch.jit.load(f, map_location=torch.device('cpu'))
+
     
     model.load_state_dict(model_state_dict, strict=False)
     model.eval()
