@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
+import subprocess
 import re
 import string
 import torch
@@ -18,7 +19,7 @@ try:
 except:
     # If the model isn't available, download it
     import os
-    os.system('python -m spacy download en_core_web_sm')
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
     nlp = spacy.load('en_core_web_sm')
 
 # Load Fake News Detection Model using pipeline
@@ -159,7 +160,7 @@ def check_credibility(claim, full_text):
             keywords = extract_keywords(full_text)
             payload = json.dumps({"q": keywords})
             search_query_used = keywords
-            response = requests.post(SERPER_API_URL, headers=headers, data=payload)
+            response = requests.post(SERPER_API_URL, headers=headers, data=payload, timeout=10)
             results = response.json()
         
         credible_matches = 0
