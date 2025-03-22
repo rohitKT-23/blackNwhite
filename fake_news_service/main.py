@@ -18,8 +18,9 @@ try:
 except:
     # If the model isn't available, download it
     import sys
-    import subprocess
-    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True)
+    import spacy.cli
+    spacy.cli.download("en_core_web_sm")
+
     nlp = spacy.load('en_core_web_sm')
 
 # Load Fake News Detection Model using pipeline
@@ -40,6 +41,10 @@ class FeedbackModel(BaseModel):
     news_text: str
     correct_label: str
     user_comment: str = None
+
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
 
 # Text preprocessing function based on model card recommendations
 def preprocess_text(text):
