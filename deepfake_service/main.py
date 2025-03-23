@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from transformers import pipeline
+from PIL import Image
 import io
-import json
 
 # Initialize FastAPI
 app = FastAPI()
@@ -16,25 +16,30 @@ def ping():
 
 @app.post("/predict-image")
 async def predict_image(image: UploadFile = File(...)):
-    # Read the image file as bytes
+    # Read image bytes
     image_data = await image.read()
-    image_bytes = io.BytesIO(image_data)  # Convert to BytesIO
+    image_bytes = io.BytesIO(image_data)
 
-    # Perform inference using classifier.predict()
-    result = classifier.predict(image_bytes)
+    # Open with PIL and convert to RGB to ensure 3 channels
+    pil_image = Image.open(image_bytes).convert("RGB")
 
-    # Inspect the result (for debugging purposes)
+    # Convert PIL image back to bytes
+    img_byte_arr = io.BytesIO()
+    pil_image.save(img_byte_arr, format='PNG')  # or 'JPEG' depending on your needs
+    img_byte_arr.seek(0)  # Move to the beginning of the byte stream
+
+    # Call classifier on the byte stream
+    result = classifier.predict(img_byte_arr)
+
+    # Debug print
     print("Raw result from classifier:", result)
 
-    # Extract only the relevant part (confidences)
+    # Extract only the confidences
     if isinstance(result, dict) and "confidences" in result:
-        # Return only the confidences part
         return {"result": result["confidences"]}
     else:
-        # Handle unexpected output format
         return {"error": "Unexpected output format from classifier."}
-
-# Run locally
+# For local running
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="54.163.173.200", port=8002)
+    uvicorn.run(app, host="0.0.0.0", port=8002)

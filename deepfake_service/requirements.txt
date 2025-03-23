@@ -1,14 +1,7 @@
-Pillow
-facenet-pytorch==2.5.2
-torch
-torchvision  # Torch ke saath recommended hai
-torchaudio   # (Optional) Agar future audio models use karni ho
-
-opencv-python
-opencv-python-headless  # Docker environments me UI dependencies hata ke OpenCV chalane ke liye
-
-grad-cam
-transformers
 fastapi
 uvicorn
-python-multipart  # File upload ke liye zaroori hai
+torch
+torchvision
+opencv-python
+face_recognition
+Pillow
